@@ -13,30 +13,19 @@
 	permissions and limitations under the License.
    ======================================================= */
 
+/// command execution related
 
 var http = require('http');
 var util = require('util');
 var jsdom = require('jsdom');
 var req = require('request');
 var url = require('url');
-
-/// Defining stuff since we bootstrap report.js
-GLOBAL.USER={};
-GLOBAL.USER.id=1;
-GLOBAL.UIFactory = {};
-GLOBAL.DOMParser= require('xmldom').DOMParser;
-// Proxy redirection
-GLOBAL.serverBCK = 'http://127.0.0.1:8081/karuta-backend?http://127.0.0.1:8080/karuta-backend/rest/api';
-GLOBAL.languages = ['en','fr'];
-GLOBAL.LANG = "fr"
-GLOBAL.LANGCODE = 1;
-GLOBAL.g_userrole = 'designer';
-GLOBAL.g_encrypted = false;
+var exec = require('child_process').exec;
 
 var appliname = "karuta";
-var cjar = jsdom.createCookieJar();
 var currentCode = "";
 
+/// Basic queue code
 var Queue = function()
 {
 	// Actual usable size will have -1
@@ -112,16 +101,19 @@ var executeTopJob = function()
 	if( !isactive )
 	{
 		// Get and remove first job
-		code = jobqueue.get();
+		portid = jobqueue.get();
 		// If we ask to process something and nothing remains,
-		if( code != null )
+		if( portid != null )
 		{
 			// Set active state
 			isactive = true;
 
-			// Execute report on it (while passing thing function as callback)
-			login(code);
-			// And now we wait till report returns from it
+			// Execute command
+      var cmd = "casperjs --ignore-ssl-errors=yes --portid='"+portid+"' casperrun.js";
+      exec(cmd, function(error, stdout, stderr){
+        // And now we wait till command returns from it
+        jobFinished();
+      });
 		}
 	}
 };
@@ -132,108 +124,10 @@ var jobFinished = function()
 	console.log('JOB FINISHED AT: '+d);
 	var fs = require('fs');
 	var code = jobqueue.dequeue();
-	var content = $('#content').html();
-	fs.writeFile("reports/"+code, content, function(err){
-		if(err) console.log(err);
-	})
 	isactive = false;
 	executeTopJob();
 };
 
-
-var login = function( code )
-{
-	var conf = {
-		html: '<html><body><div id="content"></div></body></html>',
-		cookieJar: cjar,
-		parsingMode: 'xml',
-		done: function(error, window)
-		{
-			GLOBAL.mydoc = window;
-			GLOBAL.$ = require('jquery')(window, 'Local');
-
-			GLOBAL.$.ajaxSetup({
-				error: function(data) {
-					var util = require("util");
-					console.log("DEFAULT ERROR HANDLER: "+util.inspect(data));
-				},
-				xhrFields: {
-					withCredentials: true
-				}
-			});
-
-			// Read file named 'access' and load password, don't keep it
-			var fs = require('fs');
-			var data = fs.readFileSync('access', {encoding: 'utf-8', flag: 'r'});
-			var data = data.split('\n');
-
-			GLOBAL.$.ajax({
-				contentType: 'application/xml',
-				type: "POST",
-				url: 'http://127.0.0.1:8081/karuta-backend?http://127.0.0.1:8080/karuta-backend/rest/api/credential/login',
-				dataType: 'xml',
-				data: '<credential><login>'+data[0]+'</login><password>'+data[1]+'</password></credential>',
-				// Never happen since it can't parse xml as of now or hidden option (Feb 2016)
-				success: function(data, status, error){ console.log('RELOG SUCCESS'); },
-				error: function(data, status, error)
-				{
-					console.log("====== FETCHING CODE =====");
-					fetchCode(code);
-				}
-			});
-		},
-	};
-	var basehtml = '<html><body><div id="content"></div></body></html>';
-	var doc = jsdom.env(conf);
-}
-
-
-var fetchCode = function( code )
-{
-	console.log("====== REPORT URL =====");
-	
-	// Relog
-	GLOBAL.$.ajax({
-		contentType: 'application/xml',
-		type: "GET",
-		url: 'http://127.0.0.1:8081/karuta-backend?http://127.0.0.1:8080/karuta-backend/rest/api/portfolios/portfolio/code/'+code,
-		dataType: 'xml',
-		success: function(data, status, error)
-		{
-			console.log("======== SUCCESS CODE =====");
-		},
-		error: function(data, status, error)
-		{
-			var nodeid = $("asmRoot", data.responseText).attr("id");
-			console.log("======== ERROR CODE =====");
-			console.log("====== FETCHING CONVERTED @ "+nodeid+" ====");
-			console.log("DATA: "+nodeid);
-			GLOBAL.$.ajax({
-				contentType: 'application/xml',
-				type: "GET",
-				url: 'http://127.0.0.1:8081/karuta-backend?http://127.0.0.1:8080/karuta-backend/rest/api/nodes/'+nodeid+"?xsl-file="+appliname+"/karuta/xsl/karuta2report.xsl&lang="+LANG,
-				dataType: 'xml',
-				success: function(data, status, error)
-				{
-					console.log('===== FETCH SUCCESS ========');
-				},
-				error: function(data, status, error)
-				{
-					console.log("====== FETCH ERROR ======");
-					console.log("DATA: "+data.responseText);
-					var report = require('./report');
-					var dom = new DOMParser().parseFromString(data.responseText);
-					report.process(dom, jobFinished);
-					/// Timing issue
-					var result = $('#content').html();
-
-					// Ask to write stuff
-					console.log("======= END OF REPORT PART =======");
-				}
-			});
-		}
-	});
-};
 
 var processReport = function( code )
 {
@@ -251,11 +145,5 @@ var processReport = function( code )
 module.exports =
 {
 	processReport: processReport,
-	cookie: function()
-	{
-		if( typeof cjar.store.idx['127.0.0.1'] != 'undefined' )
-			return cjar.store.idx['127.0.0.1']['/karuta-backend/'].JSESSIONID;
-		return null;
-	},
 };
 

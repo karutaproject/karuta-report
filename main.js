@@ -13,6 +13,7 @@
 	permissions and limitations under the License.
    ======================================================= */
 
+/// higher level management: scheduling and http requests
 
 var http = require('http');
 var static_file = require('node-static');
