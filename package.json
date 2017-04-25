@@ -9,8 +9,6 @@
 	},
 	"dependencies": {
 		"http": "",
-		"jsdom": "",
-		"jquery": "",
 		"node-static": "",
 		"request": "",
 		"url": "",

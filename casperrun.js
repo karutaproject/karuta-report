@@ -13,67 +13,49 @@
    permissions and limitations under the License.
    ======================================================= */
 
-// --ignore-ssl-errors=yes --portid='f7731184-2483-4640-b87d-67d0df9a255b'
+// --ignore-ssl-errors=yes --portid='f7731184-2483-4640-b87d-67d0df9a255b' --dashid='fa2441ec-b1ab-11e6-93ef-00215e6c3f32
 
 var karutaserver = 'https://localhost/';
 var karutaservice = 'karuta/'
+var reportserver = 'http://localhost:8081/'
 var user = "USER";
 var pass = "PASS";
 
 var page = require('casper').create({verbose:true,});
 var portid = page.cli.get('portid');
+var dashid = page.cli.get('dashid');
 var fs = require('fs');
 
-console.log("Opening page: "+portid);
+var baseurl = karutaserver+karutaservice+"application/htm/login.htm?lang=fr"
+console.log("Opening page: "+baseurl);
 
-page.start(karutaserver+karutaservice+"application/htm/login.htm?lang=fr");
+page.start(baseurl);
 
 // Login
 page.then(function(casp, status){
-  status = "success"
+  page.capture("casper-main.png");
   console.log("Page opened with status: "+status);
   this.sendKeys('input[id="useridentifier"]', user);
   this.sendKeys('input[id="password"]', pass);
   this.click('button[class="button-login"]');
   this.wait(5000, function() {
-    console.log("Logged in");
-    // page.capture("casper.png");
-  });
+      console.log("Logged in");
+      page.capture("casper.png");
+      });
 });
 
 // Fetch all dashboard in this portfolio
-var dashids = [];
 var porturl = karutaserver+'/report_bootstrap.html?uuid='+portid;
-page.thenOpen(porturl, function(){
-  console.log("Dashboard list opened: "+porturl);
-  this.wait(1000, function(){
-    // page.capture("casper2.png");
-    dashids = page.evaluate(function(){
-      var ids = [];
-      var vals = document.querySelectorAll('p');
-      for( var i=0; i<vals.length; ++i ) {
-        ids.push(vals[i].innerHTML);
-      }
-      return ids;
-    });
-    console.log("Dashboards: "+dashids);
-  });
-});
-
 
 // Pre-process all those dashboard
-page.then(function(){
-  page.each(dashids, function(self, link){
-    self.thenOpen(porturl+'&dashid='+link, function(id){
-      // FIXME: Assume 10 seconds to complete the report
-      // Need a specific tag appended at the end of report construction
-      this.wait(10000, function() {
-        console.log("Saving dashboard: "+link);
-        var output = this.getHTML();
-        page.capture('reports/'+link+'.png');
-        fs.write('reports/'+link+'.html', output, 'w');
-      });
-    }, link);
+var urlreport = porturl+'&dashid='+dashid;
+page.thenOpen(urlreport, function(status){
+  console.log("Dashboard list opened: "+porturl+'&dashid='+dashid);
+  this.wait(5000, function() {
+	console.log("Saving dashboard: "+dashid);
+	var output = '<div id="contenu">'+this.getHTML("div#contenu")+'</div>';
+	page.capture('reports/'+dashid+'.png');
+	fs.write('reports/'+dashid+'.html', output, 'w');
   });
 });
 

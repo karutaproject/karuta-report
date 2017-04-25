@@ -17,7 +17,6 @@
 
 var http = require('http');
 var util = require('util');
-var jsdom = require('jsdom');
 var req = require('request');
 var url = require('url');
 var exec = require('child_process').exec;
@@ -101,15 +100,15 @@ var executeTopJob = function()
 	if( !isactive )
 	{
 		// Get and remove first job
-		portid = jobqueue.get();
+		j = jobqueue.get();
 		// If we ask to process something and nothing remains,
-		if( portid != null )
+		if( j != null )
 		{
 			// Set active state
 			isactive = true;
 
 			// Execute command
-      var cmd = "casperjs --ignore-ssl-errors=yes --portid='"+portid+"' casperrun.js";
+      var cmd = "casperjs --ignore-ssl-errors=yes --portid='"+j[0]+"' --dashid='"+j[1]+"' casperrun.js";
       exec(cmd, function(error, stdout, stderr){
         // And now we wait till command returns from it
         jobFinished();
@@ -129,10 +128,10 @@ var jobFinished = function()
 };
 
 
-var processReport = function( code )
+var processReport = function( portid, code )
 {
 	// Add a job on the queue
-	jobqueue.queue(code);
+	jobqueue.queue([portid, code]);
 	// Ask to process everything;
 	executeTopJob();
 };
