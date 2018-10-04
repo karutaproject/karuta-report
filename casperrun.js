@@ -24,6 +24,7 @@ var pass = "PASS";
 var page = require('casper').create({verbose:true,});
 var portid = page.cli.get('portid');
 var dashid = page.cli.get('dashid');
+var substi = page.cli.get('user');
 var fs = require('fs');
 
 var baseurl = karutaserver+karutaservice+"application/htm/karuta.htm?lang=fr"
@@ -35,7 +36,7 @@ page.start(baseurl);
 page.then(function(casp, status){
   page.capture("casper-main.png");
   console.log("Page opened with status: "+status);
-  this.sendKeys('input[id="useridentifier"]', user);
+  this.sendKeys('input[id="useridentifier"]', user+"#"+substi);
   this.sendKeys('input[id="password"]', pass);
   this.click('button[class="button-login"]');
   this.wait(5000, function() {
