@@ -26,7 +26,7 @@ var portid = page.cli.get('portid');
 var dashid = page.cli.get('dashid');
 var fs = require('fs');
 
-var baseurl = karutaserver+karutaservice+"application/htm/login.htm?lang=fr"
+var baseurl = karutaserver+karutaservice+"application/htm/karuta.htm?lang=fr"
 console.log("Opening page: "+baseurl);
 
 page.start(baseurl);

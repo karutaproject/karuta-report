@@ -75,7 +75,7 @@ var startCycle = function( code )
 	console.log('ACTUAL START AT: '+date+" CODE: "+code+" @ "+line['portfolioid'])
 	// Start it once for the first time
 	line.lastRan = date;
-	report_lib.processReport(line['portfolioid'], code);
+	report_lib.processReport(line['portfolioid'], code, line.user);
 	// The rest is done via timer
 	var timer = setInterval(function()
 	{
@@ -95,10 +95,10 @@ var startDelay = function( delay, code )
 	line['timer'] = timer;	// For the temporary timer
 };
 
-var addConfLine = function(portid, code, startday, time, freqRead, last)
+var addConfLine = function(portid, code, startday, time, freqRead, last, user)
 {
 	if('' == code || portid == '') return;
-	console.log("Added: "+portid+'/'+code+" start at: "+time+" each "+freqRead);
+	console.log("Added: "+portid+'/'+code+" start at: "+time+" each "+freqRead+" for user "+user);
 	var freq = 'day';
 	switch( freqRead )
 	{
@@ -123,7 +123,8 @@ var addConfLine = function(portid, code, startday, time, freqRead, last)
 		freqRead: freqRead,
 		timer: null,
 		job: null,
-		lastRan: last 
+		lastRan: last,
+    user: user
 	};
 	configuration[code] = output;
 	return output;
@@ -141,8 +142,9 @@ var saveConfiguration = function()
 		var time = line['time'];
 		var freq = line['freqRead'];
 		var last = line['lastRan'];
+		var user = line['user'];
 		/// Write in conf file
-		source.write(portfolioid+';'+code+';'+startday+';'+time+';'+freq+'\n');
+		source.write(portfolioid+';'+code+';'+startday+';'+time+';'+freq+';'+last+';'+user'\n');
 	}
 	source.end();
 };
@@ -164,7 +166,8 @@ var loadConfiguration = function()
 		var starttime = col[3];
 		var freq = col[4];
 		var last = col[5];
-		addConfLine(portid, code, startday, starttime, freq, last);
+		var user = col[6];
+		addConfLine(portid, code, startday, starttime, freq, last, user);
 	}
 	// Evaluate work
 	daemon();
@@ -248,7 +251,7 @@ var config = function( request, response )
 				var c = configuration[data.code];
 				if( c != null )
 					clearInterval(c.timer);
-				addConfLine(data.portfolioid, data.code, data.startday, data.time, data.freq);
+				addConfLine(data.portfolioid, data.code, data.startday, data.time, data.freq, data.user);
 				/// Save configuration file
 				saveConfiguration();
 				daemon();
@@ -361,6 +364,6 @@ loadConfiguration();
 console.log('Configuration parsed');
 
 
-http.createServer(main).listen(8081);
+http.createServer(main).listen(8081, '127.0.0.1');
 console.log('Server running at http://127.0.0.1:8081/');
 

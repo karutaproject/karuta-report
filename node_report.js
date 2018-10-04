@@ -108,7 +108,7 @@ var executeTopJob = function()
 			isactive = true;
 
 			// Execute command
-      var cmd = "casperjs --ignore-ssl-errors=yes --portid='"+j[0]+"' --dashid='"+j[1]+"' casperrun.js";
+      var cmd = "casperjs --ignore-ssl-errors=yes --portid='"+j[0]+"' --dashid='"+j[1]+"' --user='"+j[2]+"' casperrun.js";
       exec(cmd, function(error, stdout, stderr){
         // And now we wait till command returns from it
         jobFinished();
@@ -128,10 +128,10 @@ var jobFinished = function()
 };
 
 
-var processReport = function( portid, code )
+var processReport = function( portid, code, user )
 {
 	// Add a job on the queue
-	jobqueue.queue([portid, code]);
+	jobqueue.queue([portid, code, user]);
 	// Ask to process everything;
 	executeTopJob();
 };
