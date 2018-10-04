@@ -75,7 +75,7 @@ var startCycle = function( code )
 	console.log('ACTUAL START AT: '+date+" CODE: "+code+" @ "+line['portfolioid'])
 	// Start it once for the first time
 	line.lastRan = date;
-	report_lib.processReport(line['portfolioid'], code, line.user);
+	report_lib.processReport(line['portfolioid'], code, line["user"]);
 	// The rest is done via timer
 	var timer = setInterval(function()
 	{
@@ -144,7 +144,7 @@ var saveConfiguration = function()
 		var last = line['lastRan'];
 		var user = line['user'];
 		/// Write in conf file
-		source.write(portfolioid+';'+code+';'+startday+';'+time+';'+freq+';'+last+';'+user'\n');
+		source.write(portfolioid+';'+code+';'+startday+';'+time+';'+freq+';'+last+';'+user+'\n');
 	}
 	source.end();
 };
