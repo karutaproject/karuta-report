@@ -108,11 +108,13 @@ var executeTopJob = function()
 			isactive = true;
 
 			// Execute command
-      var cmd = "casperjs --ignore-ssl-errors=yes --portid='"+j[0]+"' --dashid='"+j[1]+"' --user='"+j[2]+"' casperrun.js";
-      exec(cmd, function(error, stdout, stderr){
-        // And now we wait till command returns from it
-        jobFinished();
-      });
+			var base = "./node_modules/casperjs/bin/";
+			var cmd = "node puppet.js "+j[0]+" "+j[1]+" "+j[2];
+			console.log("Running command: "+cmd);
+			exec(cmd, function(error, stdout, stderr){
+					// And now we wait till command returns from it
+					jobFinished();
+					});
 		}
 	}
 };

@@ -34,7 +34,8 @@ var MONTH = 30 * DAY;	// Every month is 30 days
 // report code, start time (no date), frequency (daily, weekly, monthly)
 var confFile = './conf.csv';
 // code -> {time, freq}
-var configuration = {};
+var configuration = [];
+var userconfig = {};	// user -> code -> conf line
 
 var proxyurl = function( request, response )
 {
@@ -67,37 +68,45 @@ var proxyurl = function( request, response )
 };
 
 /// Timer call this function
-var startCycle = function( code )
+var startCycle = function( user, code )
 {
-	var line = configuration[code];
+	var cid = userconfig[user][code];
+	var line = configuration[cid];
+	// Clear any previous timer
+	if( line['timer'] != null )
+		clearTimeout(line['timer']);
 	// Actual timer with the right frequency
 	var date = new Date();
-	console.log('ACTUAL START AT: '+date+" CODE: "+code+" @ "+line['portfolioid'])
 	// Start it once for the first time
 	line.lastRan = date;
 	report_lib.processReport(line['portfolioid'], code, line["user"]);
 	// The rest is done via timer
 	var timer = setInterval(function()
 	{
-		console.log('STARTING REPORT: '+code+' @ '+line['portfolioid']);
-		report_lib.processReport(line['portfolioid'], code);
+		console.log('STARTING REPORT: '+code+' @ '+line['portfolioid']+' for '+line['user']);
+		report_lib.processReport(line['portfolioid'], code, line['user']);
 	}, line['freq']);
 	line['timer'] = timer;
+	console.log('ACTUAL START AT: '+date+" CODE: "+code+" @ "+line['portfolioid']+"["+line['user']+"]");
 };
 
 /// Timer call this function
-var startDelay = function( delay, code )
+var startDelay = function( delay, user, code )
 {
-	var line = configuration[code];
-	console.log('DELAY: '+delay+" CODE:"+ code+" @ "+line['portfolioid']);
-	var f = function(){ startCycle(code) }
+	var cid = userconfig[user][code];
+	var line = configuration[cid];
+	// Clear any previous timer
+	if( line['timer'] != null )
+		clearTimeout(line['timer']);
+	var f = function(){ startCycle(user, code) }
 	var timer = setTimeout(f, delay);
 	line['timer'] = timer;	// For the temporary timer
+	console.log('USER: '+user+' DELAY: "'+delay+" CODE:"+ code+" @ "+line['portfolioid'] +"["+line+"]");
 };
 
-var addConfLine = function(portid, code, startday, time, freqRead, last, user)
+var addConfLine = function(portid, code, startday, time, freqRead, user, last)
 {
-	if('' == code || portid == '') return;
+	if('' == code || portid == '' || user == '') return;
 	console.log("Added: "+portid+'/'+code+" start at: "+time+" each "+freqRead+" for user "+user);
 	var freq = 'day';
 	switch( freqRead )
@@ -117,6 +126,7 @@ var addConfLine = function(portid, code, startday, time, freqRead, last, user)
 	var output =
 	{
 	    portfolioid: portid,
+		code: code,
 		startday: startday,
 		time: time,
 		freq: freq,
@@ -124,9 +134,14 @@ var addConfLine = function(portid, code, startday, time, freqRead, last, user)
 		timer: null,
 		job: null,
 		lastRan: last,
-    user: user
+		user: user
 	};
-	configuration[code] = output;
+	var cursize = configuration.length;
+	console.log("Configuration at "+cursize);
+	if( userconfig[user] == null )
+		userconfig[user] = {};
+	userconfig[user][code] = cursize;
+	configuration[cursize] = output;
 	return output;
 };
 
@@ -134,17 +149,21 @@ var saveConfiguration = function()
 {
 	var fs = require('fs');
 	var source = fs.createWriteStream(confFile);
-	for( var code in configuration )
+	console.log("Writing configuration lines");
+	for( var u in userconfig )
 	{
-		var line = configuration[code];
-		var portfolioid = line['portfolioid'];
-		var startday = line['startday'];
-		var time = line['time'];
-		var freq = line['freqRead'];
-		var last = line['lastRan'];
-		var user = line['user'];
-		/// Write in conf file
-		source.write(portfolioid+';'+code+';'+startday+';'+time+';'+freq+';'+last+';'+user+'\n');
+		for( var c in userconfig[u] )
+		{
+			var cid = userconfig[u][c];
+			var line = configuration[cid];
+			var portfolioid = line['portfolioid'];
+			var startday = line['startday'];
+			var time = line['time'];
+			var freq = line['freqRead'];
+			var last = line['lastRan'];
+			/// Write in conf file
+			source.write(u+';'+c+';'+portfolioid+';'+startday+';'+time+';'+freq+';'+last+'\n');
+		}
 	}
 	source.end();
 };
@@ -156,18 +175,20 @@ var loadConfiguration = function()
 	var data = fs.readFileSync(confFile, {encoding: 'utf-8', flag: 'r'});
 	// Split that in line
 	var datasplit = data.split('\n');
+	console.log("Loading configuration lines: "+datasplit.length);
 	// Load
 	for( var i=0; i<datasplit.length; ++i )
 	{
+		console.log("Processing line: "+i);
 		var col = datasplit[i].split(';');
-		var portid = col[0];
+		var user = col[0];
 		var code = col[1];
-		var startday = col[2];
-		var starttime = col[3];
-		var freq = col[4];
-		var last = col[5];
-		var user = col[6];
-		addConfLine(portid, code, startday, starttime, freq, last, user);
+		var portid = col[2];
+		var startday = col[3];
+		var starttime = col[4];
+		var freq = col[5];
+		var last = col[6];
+		addConfLine(portid, code, startday, starttime, freq, user, last);
 	}
 	// Evaluate work
 	daemon();
@@ -177,11 +198,12 @@ var loadConfiguration = function()
 // Call this after adding a configuration
 var daemon = function()
 {
+	console.log("Creating timers");
 	// For each code without timer
-	for( var code in configuration )
+	for( var cid in configuration )
 	{
-		if( code == '' ) continue;
-		var line = configuration[code];
+		console.log("Line"+cid);
+		var line = configuration[cid];
 		// New configuration don't have a timer started
 		if( line['timer'] == null )
 		{
@@ -199,7 +221,24 @@ var daemon = function()
 			}
 			daynum = daynum - d.getDay();
 			if( daynum < 0 ) daynum + 7
+
+			var freq = 0;
+			switch(line['freqRead'])
+			{
+				case 'day':
+					freq = DAY;
+					daynum = 0;
+					break;
+				case 'week':
+					freq = WEEK;
+					break;
+				case 'month':
+					freq = MONTH;
+					break;
+			}
 			// Diff start time with current time
+			var code = line['code'];
+			var user = line['user'];
 			var t = line['time'];	// HH:mm
 			var tsplit = t.split(':');
 			var th = tsplit[0];
@@ -207,8 +246,11 @@ var daemon = function()
 			// Eval configuration dates, start timers
 			var delay = daynum * DAY + (th - d.getHours()) * HOUR + (tm - d.getMinutes()) * MINUTE + (0 - d.getSeconds()) * SECOND;
 			if( delay < 0 )
-				delay = delay + 7 * DAY;
-			startDelay(delay, code);
+				delay = delay + freq;
+			startDelay(delay, user, code);
+		}
+		else
+		{
 		}
 	}
 };
@@ -228,7 +270,7 @@ var config = function( request, response )
 				var line = configuration[code];
 				data += '<line>';
 				data += '<portfolioid>'+line.portfolioid+'</portfolioid>';
-				data += '<code>'+code+'</code>';
+				data += '<code>'+line.code+'</code>';
 				data += '<startday>'+line.startday+'</startday>';
 				data += '<time>'+line.time+'</time>';
 				data += '<freq>'+line.freqRead+'</freq>';
@@ -241,37 +283,48 @@ var config = function( request, response )
 			response.write(data);
 			break;
 
+		case 'PUT':	// Change configuration line
+			response.write('PUT /config');
+			break;
+
 		case 'POST':	// New configuration line
+			console.log("PROCESS BODY:");
 			var body = '';
-			request.on('data', function(chunk){ body += chunk; });
+			request.on('data', function(chunk){
+				body += chunk;
+				if( body.length > 1e6 ) request.connection.destroy();
+				});
 			request.on('end', function(){
 				// Parse info sent
 				var qs = require('querystring');
 				var data = qs.parse(body);
+				console.log("data: "+util.inspect(data,false, null));
 				var c = configuration[data.code];
 				if( c != null )
 					clearInterval(c.timer);
-				addConfLine(data.portfolioid, data.code, data.startday, data.time, data.freq, data.user);
+				//				addConfLine(data.portfolioid, data.code, data.startday, data.time, data.freq, data.user);
+				addConfLine(data.portfolioid, data.code, data.startday, data.time, data.freq, 1);
 				/// Save configuration file
 				saveConfiguration();
 				daemon();
+
+				/// Force first run
+				report_lib.processReport(data.portfolioid, data.code, data.user);
+
+				var header = {};
+				header["Access-Control-Allow-Origin"] = "*";
+				header["Content-Type"] = "text/plain";
+				response.writeHead(200, "OK", header);
 			});
 			/*
 			response.writeHead(200, {
 			});
 			//*/
-			response.setHeader("Access-Control-Allow-Origin", "*");
-			response.setHeader('Content-Type', 'text/plain');
-			response.write("OK");
 			/*
 			response.writeHead(302, {
 				'Location': '/client/config.html'
 			});
 			//*/
-			break;
-
-		case 'PUT':	// Change configuration line
-			response.write('PUT /config');
 			break;
 
 		case 'DELETE':	// Delete single line
@@ -283,7 +336,7 @@ var config = function( request, response )
 			var c = configuration[code];
 			clearInterval(c.timer);
 			// Remove configuration
-			delete configuration[code];
+			configuration[code] = null;
 			// Save changes
 			saveConfiguration();
 			response.setHeader('Content-Type', 'text/plain');
@@ -306,8 +359,9 @@ var report_request = function( request, response )
 			var split = parsedurl.pathname.split('/');
 			var fs = require('fs');
 			// Read complete file
-			var filename = './reports/'+split[2];
-			console.log('Fetching report');
+//			var filename = '.'+request.url.replace("report", "reports");
+			var filename = './reports'+request.url;
+			console.log('Fetching report: '+filename);
 			response.setHeader("Access-Control-Allow-Origin", "*");
 			if( fs.existsSync(filename) ){
 				console.log('Exist');
@@ -318,11 +372,52 @@ var report_request = function( request, response )
 			else
 			{
 				console.log("Doesn't exist");
-			 	response.writeHead(404, {"Content-Type": "text/plain"});
-				response.write("404 Not found");
+				var header = {};
+				header["Content-Type"] = "text/plain";
+				response.writeHead(404, "404 Not found", header);
 			}
 
 			break;
+
+		case 'POST':    // New configuration line
+                        console.log("PROCESS BODY:");
+                        var body = '';
+                        request.on('data', function(chunk){
+                                body += chunk;
+                                if( body.length > 1e6 ) request.connection.destroy();
+                                });
+                        request.on('end', function(){
+                                // Parse info sent
+                                var qs = require('querystring');
+                                var data = qs.parse(body);
+                                console.log("data: "+util.inspect(data,false, null));
+                                var c = configuration[data.code];
+                                if( c != null )
+                                        clearInterval(c.timer);
+                                addConfLine(data.portfolioid, data.code, data.startday, data.time, data.freq, data.user);
+                                /// Save configuration file
+                                saveConfiguration();
+                                daemon();
+
+                                /// Force first run
+                                report_lib.processReport(data.portfolioid, data.code, data.user);
+
+                                var header = {};
+                                header["Access-Control-Allow-Origin"] = "*";
+                                header["Content-Type"] = "text/plain";
+                                response.writeHead(200, "OK", header);
+                        });
+                        /*
+                        response.writeHead(200, {
+                        });
+                        //*/
+                        /*
+                        response.writeHead(302, {
+                                'Location': '/client/config.html'
+                        });
+                        //*/
+                        break;
+
 	}
 	response.end();
 };
@@ -342,20 +437,31 @@ var main = function (request, response)
 	}
 	else
 	{
-	  var parsedurl = url.parse(request.url);
-
-	  // Obviously, configuring the daemon
-	  if( parsedurl.pathname.startsWith("/config") )
-		config(request, response);
-	  // Asking for the pre-processed report
-	  else if( parsedurl.pathname.startsWith('/report') )
+//		console.log(request.headers);
 		report_request(request, response);
-	  //else if( '/karuta-backend' == parsedurl.pathname )
-	//	proxyurl(request, response)
-	  else if( parsedurl.pathname.startsWith('/client/') )
-		file.serve(request, response);
-	  else
-		response.end();
+		/*
+		var parsedurl = url.parse(request.url);
+
+		console.log(parsedurl.pathname+" "+parsedurl.pathname.indexOf('/report', 0));
+		// Obviously, configuring the daemon
+		if( parsedurl.pathname.indexOf("/config", 0) == 0 )
+		{
+			config(request, response);
+		}
+		// Asking for the pre-processed report
+		else if( parsedurl.pathname.indexOf('/report', 0) == 0 )
+		{
+			report_request(request, response);
+		}
+		//else if( '/karuta-backend' == parsedurl.pathname )
+		//	proxyurl(request, response)
+		else if( parsedurl.pathname.indexOf('/client/', 0) == 0 )
+		{
+			file.serve(request, response);
+		}
+		else
+			response.end();
+		//*/
 	}
 };
 

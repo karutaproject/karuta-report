@@ -15,9 +15,9 @@
 
 // --ignore-ssl-errors=yes --portid='f7731184-2483-4640-b87d-67d0df9a255b' --dashid='fa2441ec-b1ab-11e6-93ef-00215e6c3f32
 
-var karutaserver = 'https://localhost/';
-var karutaservice = 'karuta/'
-var reportserver = 'http://localhost:8081/'
+var karutaserver = 'http://localhost/';
+var karutaservice = 'karuta/';
+var reportserver = 'http://localhost:8081/';
 var user = "USER";
 var pass = "PASS";
 
@@ -27,7 +27,8 @@ var dashid = page.cli.get('dashid');
 var substi = page.cli.get('user');
 var fs = require('fs');
 
-var baseurl = karutaserver+karutaservice+"application/htm/karuta.htm?lang=fr"
+
+var baseurl = karutaserver+karutaservice+"application/htm/login.htm";
 console.log("Opening page: "+baseurl);
 
 page.start(baseurl);
@@ -35,10 +36,15 @@ page.start(baseurl);
 // Login
 page.then(function(casp, status){
   page.capture("casper-main.png");
-  console.log("Page opened with status: "+status);
+  console.log("Page opened with status: "+this.currentHTTPStatus);
   this.sendKeys('input[id="useridentifier"]', user+"#"+substi);
   this.sendKeys('input[id="password"]', pass);
-  this.click('button[class="button-login"]');
+
+  this.evaluate(function(){
+	document.querySelector("div[id='login'] button:last-child").click();
+  });
+
+//  this.click("#button-login");
   this.wait(5000, function() {
       console.log("Logged in");
       page.capture("casper.png");
@@ -46,19 +52,25 @@ page.then(function(casp, status){
 });
 
 // Fetch all dashboard in this portfolio
-var porturl = karutaserver+'/report_bootstrap.html?uuid='+portid;
+var porturl = karutaserver+karutaservice+'report_bootstrap.html?uuid='+portid;
+
 
 // Pre-process all those dashboard
 var urlreport = porturl+'&dashid='+dashid;
+
 page.thenOpen(urlreport, function(status){
   console.log("Dashboard list opened: "+porturl+'&dashid='+dashid);
+  console.log("Page opened with status: "+this.currentHTTPStatus);
+
   this.wait(5000, function() {
 	console.log("Saving dashboard: "+dashid);
 	var output = '<div id="contenu">'+this.getHTML("div#contenu")+'</div>';
-	page.capture('reports/'+dashid+'.png');
-	fs.write('reports/'+dashid+'.html', output, 'w');
+	page.capture('reports/'+substi+"__"+dashid+'.png');
+	fs.write('reports/'+substi+"__"+dashid+'.html', output, 'w');
   });
 });
+//*/
+
 
 page.run();
 
