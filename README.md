@@ -16,7 +16,7 @@ Inside the karuta-report folder
 Create a service account in karuta, if possible with a randomly generated login and password and fill the 'access' file, ensure that reading the content is not permitted for everyone on the system
 
 To run the daemon
->pm2 main.js
+>pm2 start main.js
 
 In the browser
 >http://localhost:8081/client/config.html
