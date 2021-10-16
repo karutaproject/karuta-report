@@ -8,12 +8,11 @@
 		"url": ""
 	},
 	"dependencies": {
-		"casperjs": "^1.1.4",
-		"file-system": "^2.2.2",
+		"casperjs": "",
+		"file-system": "",
 		"http": "",
-		"node-static": "^0.7.11",
-		"phantomjs": "^2.1.7",
-		"puppeteer": "^9.1.1",
+		"node-static": "",
+		"puppeteer": "",
 		"request": "",
 		"url": "",
 		"util": "",

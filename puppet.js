@@ -3,8 +3,8 @@ const fs = require('fs');
 const puppeteer = require('puppeteer');
 
 const repFolder = "./reports/";
-const server = "https://www.eportfolium.fr";
-const app = "/univ-smb";
+const server = "https://MYSERVER";
+const app = "/karuta";
 const url = server+app+"/application/htm/login.htm";
 
 const portid = process.argv[2];

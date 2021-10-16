@@ -3,12 +3,13 @@ The current report code in the web browser can take some time to run on big repo
 
 ## How to install
 Installing node-js itself
->apt-get install nodejs<br>
+>apt-get install npm
 
 Installing service manager
 >npm install -g pm2
 
-Installing dependencies
+Installing dependencies:<br>
+Inside the karuta-report folder
 >npm install
 
 ## How to use
