@@ -14,8 +14,8 @@ const substi = process.argv[4];
 const urlreport = server+app+"/report_bootstrap.html?uuid="+portid+"&dashid="+dashid;
 const reportFile = repFolder+substi+"__"+dashid
 
-login = "root";
-password = "Adminsmb!";
+login = "reportuser";
+password = "reportuserpassword!";
 
 async function run () {
 	const browser = await puppeteer.launch();
