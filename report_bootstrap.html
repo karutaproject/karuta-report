@@ -145,6 +145,7 @@ var display = function(uuid, dashuuid)
 	var langcode = 0;
 	var cb = function(data){
 		UICom.parseStructure(data);
+		setVariables(data);
 		var dashboard_div = "<div id='dashboard_"+dashuuid+"' class='createreport col-md-offset-1 col-md-11'></div>";
 		$("#contenu").append(dashboard_div);
 		genDashboardContent('dashboard_'+dashuuid,dashuuid,data,data);
