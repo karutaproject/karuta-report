@@ -12,6 +12,9 @@ Installing dependencies:<br>
 Inside the karuta-report folder
 >npm install
 
+Dependencies for Chrome-headless
+>apt-get install libgbm-dev
+
 ## How to use
 Create a service account in karuta, if possible with a randomly generated login and password and fill the 'access' file, ensure that reading the content is not permitted for everyone on the system
 
