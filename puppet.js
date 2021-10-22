@@ -21,6 +21,7 @@ async function run () {
 	const browser = await puppeteer.launch();
 	const context = await browser.createIncognitoBrowserContext();
 	const page = await context.newPage();
+	await page.setDefaultNavigationTimeout(0)
 	await page.goto(url);
 	await page.type('#useridentifier', login+"#"+substi);
 	await page.type('#password', password);
